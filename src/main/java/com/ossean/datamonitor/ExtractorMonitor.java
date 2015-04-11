@@ -13,20 +13,15 @@ import javax.annotation.Resource;
 
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
-import org.springframework.stereotype.Repository;
+import org.springframework.stereotype.Component;
 
 import com.ossean.dao.DestSource;
-import com.ossean.datamonitor.crawlersource.CrawlerSourceData;
 import com.ossean.datamonitor.extractorsource.ExtractorSourceData;
 import com.ossean.util.TxtRead;
 
+@Component
+public class ExtractorMonitor extends TimerTask {
 
-@Repository("Monitor")
-public class Monitor extends TimerTask {
-
-	@SuppressWarnings("restriction")
-	@Resource
-	private CrawlerSourceData crawlerSourceData;
 
 	@SuppressWarnings("restriction")
 	@Resource
@@ -34,7 +29,7 @@ public class Monitor extends TimerTask {
 
 	@SuppressWarnings("restriction")
 	@Resource
-	private  DestSource destSource;
+	private DestSource destSource;
 
 	private List<String> txt = new ArrayList<String>();
 	private List<String> tables = new ArrayList<String>();
@@ -47,10 +42,8 @@ public class Monitor extends TimerTask {
 	private String begin_week;
 	private String begin_month;
 	private String crawler_tail = "_html_detail";
-	private static String dest_table="destable";
-	
-	
-	
+	private static String dest_table = "destable";
+
 	@Override
 	public void run() {
 		// 对抽取环节的监控
@@ -65,66 +58,58 @@ public class Monitor extends TimerTask {
 		// 加载extract的配置文件
 		getExtractorConfig("extractTables");
 		checkDestItem(tables);
-		for(int i = 0 ; i<tables.size();i++){
-			DesTable dest = new DesTable(tables.get(i),category.get(i));
-			dest.setDay_extractor(extractorSourceData.selectByTime(tables.get(i), timeCol.get(i), begin_day, end));	
-			dest.setWeek_extractor(extractorSourceData.selectByTime(tables.get(i), timeCol.get(i), begin_week, end));
-			dest.setMonth_extractor(extractorSourceData.selectByTime(tables.get(i), timeCol.get(i), begin_month, end));
-
-			destSource.updateExtractorItem(dest_table, dest);
-		}		
-		
-		//加载crawler的配置文件
-//		getCrawlerConfig("crawlTables");
-//		for(int i = 0 ; i<tables.size();i++){
-//			
-//			String tmp = tables.get(i);
-//			String table_name = tables.get(i).substring(0, tmp.length()-crawler_tail.length());
-//			DesTable dest = new DesTable(table_name,category.get(i));
-//			dest.setDay_crawler(extractorSourceData.selectByTime(tables.get(i), timeCol.get(i), begin_day, end));			
-//			dest.setWeek_crawler(extractorSourceData.selectByTime(tables.get(i), timeCol.get(i), begin_week, end));
-//			dest.setMonth_crawler(extractorSourceData.selectByTime(tables.get(i), timeCol.get(i), begin_month, end));
-//
-//			destSource.updateCrawlerItem(dest_table, dest);
-//		}		
+		//开始统计所需的各个属性的值与每个站点现有的数据总量
+		for (int i = 0; i < tables.size(); i++) {
+			DesTable dest = new DesTable(tables.get(i), category.get(i));
+			dest.setDay_extractor(extractorSourceData.selectByTime(
+					tables.get(i), timeCol.get(i), begin_day, end));
+			dest.setWeek_extractor(extractorSourceData.selectByTime(
+					tables.get(i), timeCol.get(i), begin_week, end));
+			dest.setMonth_extractor(extractorSourceData.selectByTime(
+					tables.get(i), timeCol.get(i), begin_month, end));
+			dest.setTotal_num(extractorSourceData.countNum(tables.get(i)));
+			destSource.updateExtractorItem(dest_table, dest);//实时统计数据的抽取量
+			destSource.updateTotalNum(dest_table, dest);//实时统计每个站点的总数据量
+			
+		}
 	}
-	
-	public void getExtractorConfig(String txt_name){
+
+	public void getExtractorConfig(String txt_name) {
 		txt.clear();
 		tables.clear();
 		category.clear();
 		timeCol.clear();
-		txt = TxtRead.read("./config/"+txt_name+".txt");
-		for(String str:txt){
+		txt = TxtRead.read("./config/" + txt_name + ".txt");
+		for (String str : txt) {
 			String[] tmp = str.split(" ");
 			tables.add(tmp[0]);
 			category.add(tmp[1]);
 			timeCol.add(tmp[2]);
-		}		
+		}
 	}
-	
-	public void getCrawlerConfig(String txt_name){
+
+	public void getCrawlerConfig(String txt_name) {
 		txt.clear();
 		tables.clear();
 		category.clear();
 		timeCol.clear();
-		txt = TxtRead.read("./config/"+txt_name+".txt");
-		for(String str:txt){
+		txt = TxtRead.read("./config/" + txt_name + ".txt");
+		for (String str : txt) {
 			String[] tmp = str.split(" ");
-			tables.add(tmp[0]+crawler_tail);
+			tables.add(tmp[0] + crawler_tail);
 			category.add(tmp[1]);
 			timeCol.add(tmp[2]);
-		}		
-	}
-	
-	public void checkDestItem(List<String> tables){
-		for(String website:tables){
-			if(destSource.checkItem(dest_table, website)==0){
-				destSource.addItem(dest_table, website);
-			}			
 		}
 	}
-	
+
+	public void checkDestItem(List<String> tables) {
+		for (String website : tables) {
+			if (destSource.checkItem(dest_table, website) == 0) {
+				destSource.addItem(dest_table, website);
+			}
+		}
+	}
+
 	public static String getTime(int days) {
 		String time_format = "yyyy-MM-dd";
 		SimpleDateFormat sdf = new SimpleDateFormat(time_format);
@@ -147,10 +132,12 @@ public class Monitor extends TimerTask {
 
 		timer.schedule(this, 0, 1000);
 	}
+
 	public static void main(String[] args) {
-     	ApplicationContext applicationContext = new ClassPathXmlApplicationContext("classpath:/applicationContext*.xml");
-        Monitor m = (Monitor) applicationContext.getBean("Monitor");
-//		Main m = new Main();
+		ApplicationContext applicationContext = new ClassPathXmlApplicationContext(
+				"classpath:/applicationContext*.xml");
+		Monitor m = (Monitor) applicationContext.getBean("Monitor");
+		// Main m = new Main();
 		m.begin();
 	}
 }
