@@ -68,6 +68,9 @@ public class ExtractorMonitor extends TimerTask {
 			dest.setMonth_extractor(extractorSourceData.selectByTime(
 					tables.get(i), timeCol.get(i), begin_month, end));
 			dest.setTotal_num(extractorSourceData.countNum(tables.get(i)));
+			System.out.println("****************");
+			System.out.println(dest.getTotal_num());
+			System.out.println("*****************");
 			destSource.updateExtractorItem(dest_table, dest);//实时统计数据的抽取量
 			destSource.updateTotalNum(dest_table, dest);//实时统计每个站点的总数据量
 			
